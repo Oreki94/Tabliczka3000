@@ -140,6 +140,18 @@ function speak(text) {
   }
 }
 
+function UnicornRun({ celebrate = false }) {
+  return (
+    <div className={`unicorn-run ${celebrate ? 'is-celebration' : ''}`} aria-hidden="true">
+      <span className="unicorn unicorn-one">🦄</span>
+      <span className="unicorn unicorn-two">🦄</span>
+      <span className="spark spark-one">✦</span>
+      <span className="spark spark-two">✦</span>
+      <span className="spark spark-three">✦</span>
+    </div>
+  );
+}
+
 function DigitButton({ digit, active, disabled, onClick }) {
   return (
     <button
@@ -365,6 +377,7 @@ export default function App() {
   const [mistakes, setMistakes] = useState(0);
   const [feedback, setFeedback] = useState('');
   const [wrongPulse, setWrongPulse] = useState(false);
+  const [celebrate, setCelebrate] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const startedAtRef = useRef(Date.now());
 
@@ -404,6 +417,7 @@ export default function App() {
     setMistakes(0);
     setFeedback('');
     setWrongPulse(false);
+    setCelebrate(false);
     setElapsed(0);
     startedAtRef.current = Date.now();
     setScreen('game');
@@ -429,6 +443,8 @@ export default function App() {
     const numeric = Number(answer);
     if (numeric === question.answer) {
       setFeedback('Dobrze! ⭐');
+      setCelebrate(true);
+      window.setTimeout(() => setCelebrate(false), 1500);
       speak('Brawo!');
       window.setTimeout(() => {
         if (questionIndex === 4) {
@@ -457,6 +473,7 @@ export default function App() {
     <main className="app-shell">
       <div className="background-orb orb-one" />
       <div className="background-orb orb-two" />
+      <UnicornRun celebrate={celebrate} />
 
       <header className="topbar">
         <button type="button" className="brand" onClick={startRound} aria-label="Rozpocznij nową rundę">
@@ -486,7 +503,7 @@ export default function App() {
               <div className="operation-chip">{currentOperation.emoji} {currentOperation.name}</div>
             </div>
 
-            <div className={`question-card ${wrongPulse ? 'shake' : ''}`}>
+            <div className={`question-card ${wrongPulse ? 'shake' : ''} ${celebrate ? 'correct-glow' : ''}`}>
               <div className="question-mascot" aria-hidden="true">🦊</div>
               <div className="question-label">Ile to jest?</div>
               <div className="equation" aria-live="polite">
