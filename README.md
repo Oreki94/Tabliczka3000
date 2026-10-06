@@ -10,7 +10,8 @@ Gra edukacyjna dla dzieci do nauki dodawania, odejmowania, mnożenia i dzielenia
 - animowane jednorożce przebiegające przez ekran po poprawnej odpowiedzi,
 - 1–5 gwiazdek zależnych od czasu,
 - wybór aktywnych działań — można ćwiczyć np. tylko odejmowanie,
-- ustawienia cyfr osobno dla każdego działania,
+- poziom trudności dodawania i odejmowania: 0–9, 10–99 albo 100–999,
+- wybór konkretnych cyfr dla mnożenia i dzielenia,
 - ustawienia chronione PIN-em `0987`,
 - ustawienia zapisywane w `localStorage`,
 - brak backendu — projekt działa jako statyczna aplikacja Vite.

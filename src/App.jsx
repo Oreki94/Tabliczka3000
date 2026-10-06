@@ -11,8 +11,18 @@ const OP_LABELS = {
   division: { name: 'Dzielenie', sign: '÷', emoji: '🍪' },
 };
 
+const NUMBER_RANGES = {
+  '0-9': { label: '0–9', min: 0, max: 9 },
+  '10-99': { label: '10–99', min: 10, max: 99 },
+  '100-999': { label: '100–999', min: 100, max: 999 },
+};
+
 const DEFAULT_SETTINGS = {
   selectedOperations: [...OP_ORDER],
+  numberRanges: {
+    addition: '0-9',
+    subtraction: '0-9',
+  },
   digits: {
     addition: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
     subtraction: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
@@ -36,6 +46,7 @@ function loadSettings() {
       selectedOperations: Array.isArray(parsed.selectedOperations) && parsed.selectedOperations.length
         ? parsed.selectedOperations.filter((operation) => OP_ORDER.includes(operation))
         : [...DEFAULT_SETTINGS.selectedOperations],
+      numberRanges: { ...DEFAULT_SETTINGS.numberRanges, ...(parsed.numberRanges ?? {}) },
       digits: { ...DEFAULT_SETTINGS.digits, ...(parsed.digits ?? {}) },
       starTimes: { ...DEFAULT_SETTINGS.starTimes, ...(parsed.starTimes ?? {}) },
     };
@@ -72,22 +83,23 @@ function getStars(seconds, starTimes) {
   return 1;
 }
 
-function getRandomQuestion(operation, digits) {
+function randomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function getRandomQuestion(operation, settings) {
+  if (operation === 'addition' || operation === 'subtraction') {
+    const rangeKey = settings.numberRanges?.[operation] ?? '0-9';
+    const range = NUMBER_RANGES[rangeKey] ?? NUMBER_RANGES['0-9'];
+    let a = randomInt(range.min, range.max);
+    let b = randomInt(range.min, range.max);
+    if (operation === 'subtraction' && b > a) [a, b] = [b, a];
+    return { a, b, op: operation === 'addition' ? '+' : '−', answer: operation === 'addition' ? a + b : a - b };
+  }
+
+  const digits = settings.digits;
   const allowed = digits[operation].filter((d) => Number.isInteger(d));
   if (allowed.length === 0) return null;
-
-  if (operation === 'addition') {
-    const a = randomItem(allowed);
-    const b = randomItem(allowed);
-    return { a, b, op: '+', answer: a + b };
-  }
-
-  if (operation === 'subtraction') {
-    let a = randomItem(allowed);
-    let b = randomItem(allowed);
-    if (b > a) [a, b] = [b, a];
-    return { a, b, op: '−', answer: a - b };
-  }
 
   if (operation === 'multiplication') {
     const a = randomItem(allowed);
@@ -105,7 +117,9 @@ function getRandomQuestion(operation, digits) {
   return { a, b, op: '÷', answer: a / b };
 }
 
-function hasEnoughForOperation(operation, digits) {
+function hasEnoughForOperation(operation, settings) {
+  if (operation === 'addition' || operation === 'subtraction') return Boolean(NUMBER_RANGES[settings.numberRanges?.[operation] ?? '0-9']);
+  const digits = settings.digits;
   const allowed = digits[operation] ?? [];
   if (allowed.length === 0) return false;
   if (operation === 'division') {
@@ -116,12 +130,12 @@ function hasEnoughForOperation(operation, digits) {
 
 function createRound(settings) {
   const enabled = (settings.selectedOperations ?? OP_ORDER).filter((operation) => OP_ORDER.includes(operation));
-  const operations = shuffle(enabled.filter((operation) => hasEnoughForOperation(operation, settings.digits)));
+  const operations = shuffle(enabled.filter((operation) => hasEnoughForOperation(operation, settings)));
   const pickedOperations = operations.length ? operations : ['addition'];
   const questions = [];
   for (let i = 0; i < 5; i += 1) {
     const operation = pickedOperations[i % pickedOperations.length];
-    const question = getRandomQuestion(operation, settings.digits);
+    const question = getRandomQuestion(operation, settings);
     questions.push(question ?? { a: 1, b: 1, op: '+', answer: 2, operation: 'addition' });
   }
   return questions.map((question, index) => ({
@@ -197,6 +211,13 @@ function SettingsModal({ settings, onSave, onClose }) {
   const [pinError, setPinError] = useState('');
   const [draft, setDraft] = useState(() => JSON.parse(JSON.stringify(settings)));
 
+  const updateNumberRange = (operation, rangeKey) => {
+    setDraft((current) => ({
+      ...current,
+      numberRanges: { ...current.numberRanges, [operation]: rangeKey },
+    }));
+  };
+
   const updateOperation = (operation) => {
     setDraft((current) => {
       const selected = current.selectedOperations ?? OP_ORDER;
@@ -247,7 +268,7 @@ function SettingsModal({ settings, onSave, onClose }) {
             <div className="lock-icon">🔒</div>
             <div>
               <strong>Ustawienia są zablokowane</strong>
-              <p>Podaj PIN, aby zmienić cyfry i progi gwiazdek.</p>
+              <p>Podaj PIN, aby zmienić poziomy trudności i progi gwiazdek.</p>
             </div>
           </div>
         )}
@@ -296,14 +317,55 @@ function SettingsModal({ settings, onSave, onClose }) {
           <div className="settings-section">
             <div className="section-title-row">
               <div>
-                <span className="eyebrow">CYFRY</span>
-                <h3>Jakie cyfry mogą pojawiać się w zadaniach?</h3>
+                <span className="eyebrow">POZIOMY TRUDNOŚCI</span>
+                <h3>Jak duże liczby mają pojawiać się w dodawaniu i odejmowaniu?</h3>
               </div>
-              <span className="tiny-note">Wyłączone działania są pomijane podczas gry.</span>
+              <span className="tiny-note">Większy zakres = trudniejsze zadania.</span>
+            </div>
+
+            <div className="range-settings-grid">
+              {['addition', 'subtraction'].map((operation) => {
+                const enabled = (draft.selectedOperations ?? OP_ORDER).includes(operation);
+                return (
+                  <div className={`operation-card range-card ${enabled ? '' : 'is-disabled'}`} key={operation}>
+                    <div className="operation-card-title">
+                      <span className="operation-emoji">{OP_LABELS[operation].emoji}</span>
+                      <strong>{OP_LABELS[operation].name}</strong>
+                      {!enabled && <span className="operation-disabled-label">wyłączone</span>}
+                    </div>
+                    <div className="range-choice-grid">
+                      {Object.entries(NUMBER_RANGES).map(([key, range]) => (
+                        <label className={`range-choice ${(draft.numberRanges?.[operation] ?? '0-9') === key ? 'is-active' : ''}`} key={key}>
+                          <input
+                            type="radio"
+                            name={`range-${operation}`}
+                            value={key}
+                            checked={(draft.numberRanges?.[operation] ?? '0-9') === key}
+                            disabled={!unlocked || !enabled}
+                            onChange={() => updateNumberRange(operation, key)}
+                          />
+                          <span>{range.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <div className="operation-hint">Obie liczby w zadaniu losują się z wybranego zakresu.</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="settings-section">
+            <div className="section-title-row">
+              <div>
+                <span className="eyebrow">TABLICZKA</span>
+                <h3>Jakie cyfry mogą pojawiać się w mnożeniu i dzieleniu?</h3>
+              </div>
+              <span className="tiny-note">Tutaj nadal wybierasz konkretne cyfry.</span>
             </div>
 
             <div className="operation-settings-grid">
-              {OP_ORDER.map((operation) => {
+              {['multiplication', 'division'].map((operation) => {
                 const enabled = (draft.selectedOperations ?? OP_ORDER).includes(operation);
                 return (
                   <div className={`operation-card ${enabled ? '' : 'is-disabled'}`} key={operation}>
@@ -381,9 +443,9 @@ function SettingsModal({ settings, onSave, onClose }) {
                 setPinError('Wybierz przynajmniej jedno działanie.');
                 return;
               }
-              const invalid = selected.some((op) => cleanDigits[op].length === 0 || !hasEnoughForOperation(op, cleanDigits));
+              const invalid = selected.some((op) => (op === 'addition' || op === 'subtraction') ? !NUMBER_RANGES[draft.numberRanges?.[op]] : (cleanDigits[op].length === 0 || !hasEnoughForOperation(op, { ...draft, digits: cleanDigits })));
               if (invalid) {
-                setPinError('Każde wybrane działanie musi mieć poprawnie ustawione cyfry. Dla dzielenia musi istnieć przynajmniej jeden poprawny przykład.');
+                setPinError('Sprawdź ustawienia wybranych działań. Dla dzielenia musi istnieć przynajmniej jeden poprawny przykład.');
                 return;
               }
               save();
@@ -492,6 +554,10 @@ export default function App() {
     const normalized = {
       ...nextSettings,
       selectedOperations: [...(nextSettings.selectedOperations ?? OP_ORDER)].filter((op) => OP_ORDER.includes(op)),
+      numberRanges: {
+        addition: NUMBER_RANGES[nextSettings.numberRanges?.addition] ? nextSettings.numberRanges.addition : '0-9',
+        subtraction: NUMBER_RANGES[nextSettings.numberRanges?.subtraction] ? nextSettings.numberRanges.subtraction : '0-9',
+      },
       digits: Object.fromEntries(OP_ORDER.map((op) => [op, [...nextSettings.digits[op]].sort((a, b) => a - b)])),
       starTimes: {
         five: Number(nextSettings.starTimes.five),
