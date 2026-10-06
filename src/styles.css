@@ -179,6 +179,16 @@ button:disabled, input:disabled { cursor: not-allowed; }
 .section-title-row { display: flex; justify-content: space-between; gap: 16px; align-items: end; margin-bottom: 14px; }
 .section-title-row h3 { margin: 5px 0 0; font-size: 19px; }
 .tiny-note { color: var(--muted); font-size: 12px; }
+.operation-choice-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.operation-toggle { display: flex; align-items: center; gap: 9px; min-width: 0; padding: 11px 12px; border: 1px solid var(--line); border-radius: 16px; background: #fbfbfe; color: var(--ink); text-align: left; }
+.operation-toggle.is-active { border-color: #cfc8ff; background: #f0edff; box-shadow: inset 0 0 0 1px #ddd8ff; }
+.operation-toggle-icon { font-size: 20px; flex: 0 0 auto; }
+.operation-toggle-copy { display: grid; min-width: 0; gap: 2px; }
+.operation-toggle-copy strong { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.operation-toggle-copy small { color: var(--muted); font-size: 10px; font-weight: 800; }
+.operation-toggle-check { margin-left: auto; width: 20px; height: 20px; border-radius: 999px; display: grid; place-items: center; background: #e9e6ff; color: var(--purple-dark); font-weight: 900; flex: 0 0 auto; }
+.operation-card.is-disabled { opacity: .58; }
+.operation-disabled-label { margin-left: auto; color: var(--muted); font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
 .operation-settings-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
 .operation-card { border: 1px solid var(--line); border-radius: 18px; padding: 14px; background: #fbfbfe; }
 .operation-card-title { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
@@ -282,6 +292,15 @@ button:disabled, input:disabled { cursor: not-allowed; }
   .digit-grid { gap: 5px; }
 }
 
+@media (max-width: 600px) {
+  .operation-choice-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .operation-toggle { padding: 8px; border-radius: 12px; gap: 6px; }
+  .operation-toggle-icon { font-size: 17px; }
+  .operation-toggle-copy strong { font-size: 10px; }
+  .operation-toggle-copy small { font-size: 9px; }
+  .operation-toggle-check { width: 18px; height: 18px; font-size: 11px; }
+}
+
 @media (max-width: 430px) {
   .brand { font-size: 17px; }
   .brand-badge { width: 31px; height: 31px; }
@@ -312,9 +331,9 @@ button:disabled, input:disabled { cursor: not-allowed; }
   .equation { margin-top: 7px; gap: 7px; font-size: clamp(38px, 12vw, 54px); line-height: 1; }
   .answer-slot { min-width: 62px; padding: 0 8px 4px; border-bottom-width: 3px; }
   .feedback { min-height: 18px; margin-top: 5px; font-size: 11px; }
-  .keypad { margin-top: 8px; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .keypad { margin-top: 8px; grid-template-columns: repeat(3, 1fr); gap: 6px; }
   .keypad-key { min-height: clamp(43px, 10.5vw, 50px); border-radius: 12px; font-size: 19px; }
-  .submit-button { grid-column: span 2; min-height: clamp(43px, 10.5vw, 50px); border-radius: 12px; font-size: 14px; }
+  .submit-button { grid-column: 1 / -1; min-height: clamp(43px, 10.5vw, 50px); border-radius: 12px; font-size: 14px; }
   .helper-row { display: none; }
   .app-footer { display: none; }
 

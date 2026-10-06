@@ -12,6 +12,7 @@ const OP_LABELS = {
 };
 
 const DEFAULT_SETTINGS = {
+  selectedOperations: [...OP_ORDER],
   digits: {
     addition: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
     subtraction: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
@@ -32,6 +33,9 @@ function loadSettings() {
     if (!raw) return DEFAULT_SETTINGS;
     const parsed = JSON.parse(raw);
     return {
+      selectedOperations: Array.isArray(parsed.selectedOperations) && parsed.selectedOperations.length
+        ? parsed.selectedOperations.filter((operation) => OP_ORDER.includes(operation))
+        : [...DEFAULT_SETTINGS.selectedOperations],
       digits: { ...DEFAULT_SETTINGS.digits, ...(parsed.digits ?? {}) },
       starTimes: { ...DEFAULT_SETTINGS.starTimes, ...(parsed.starTimes ?? {}) },
     };
@@ -111,7 +115,8 @@ function hasEnoughForOperation(operation, digits) {
 }
 
 function createRound(settings) {
-  const operations = shuffle(OP_ORDER.filter((operation) => hasEnoughForOperation(operation, settings.digits)));
+  const enabled = (settings.selectedOperations ?? OP_ORDER).filter((operation) => OP_ORDER.includes(operation));
+  const operations = shuffle(enabled.filter((operation) => hasEnoughForOperation(operation, settings.digits)));
   const pickedOperations = operations.length ? operations : ['addition'];
   const questions = [];
   for (let i = 0; i < 5; i += 1) {
@@ -152,6 +157,26 @@ function UnicornRun({ celebrate = false }) {
   );
 }
 
+function OperationToggle({ operation, active, disabled, onClick }) {
+  const meta = OP_LABELS[operation];
+  return (
+    <button
+      type="button"
+      className={`operation-toggle ${active ? 'is-active' : ''}`}
+      aria-pressed={active}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      <span className="operation-toggle-icon">{meta.emoji}</span>
+      <span className="operation-toggle-copy">
+        <strong>{meta.name}</strong>
+        <small>{active ? 'Włączone' : 'Wyłączone'}</small>
+      </span>
+      <span className="operation-toggle-check">{active ? '✓' : ''}</span>
+    </button>
+  );
+}
+
 function DigitButton({ digit, active, disabled, onClick }) {
   return (
     <button
@@ -171,6 +196,16 @@ function SettingsModal({ settings, onSave, onClose }) {
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState('');
   const [draft, setDraft] = useState(() => JSON.parse(JSON.stringify(settings)));
+
+  const updateOperation = (operation) => {
+    setDraft((current) => {
+      const selected = current.selectedOperations ?? OP_ORDER;
+      const next = selected.includes(operation)
+        ? selected.filter((item) => item !== operation)
+        : [...selected, operation];
+      return { ...current, selectedOperations: next };
+    });
+  };
 
   const updateDigits = (operation, digit) => {
     setDraft((current) => {
@@ -240,33 +275,58 @@ function SettingsModal({ settings, onSave, onClose }) {
           <div className="settings-section">
             <div className="section-title-row">
               <div>
+                <span className="eyebrow">DZIAŁANIA</span>
+                <h3>Co ćwiczymy w tej grze?</h3>
+              </div>
+              <span className="tiny-note">Możesz wybrać jedno, dwa lub wszystkie.</span>
+            </div>
+            <div className="operation-choice-grid">
+              {OP_ORDER.map((operation) => (
+                <OperationToggle
+                  key={operation}
+                  operation={operation}
+                  active={(draft.selectedOperations ?? OP_ORDER).includes(operation)}
+                  disabled={!unlocked}
+                  onClick={() => updateOperation(operation)}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="settings-section">
+            <div className="section-title-row">
+              <div>
                 <span className="eyebrow">CYFRY</span>
                 <h3>Jakie cyfry mogą pojawiać się w zadaniach?</h3>
               </div>
-              <span className="tiny-note">Kliknij cyfry, żeby je włączyć lub wyłączyć.</span>
+              <span className="tiny-note">Wyłączone działania są pomijane podczas gry.</span>
             </div>
 
             <div className="operation-settings-grid">
-              {OP_ORDER.map((operation) => (
-                <div className="operation-card" key={operation}>
-                  <div className="operation-card-title">
-                    <span className="operation-emoji">{OP_LABELS[operation].emoji}</span>
-                    <strong>{OP_LABELS[operation].name}</strong>
+              {OP_ORDER.map((operation) => {
+                const enabled = (draft.selectedOperations ?? OP_ORDER).includes(operation);
+                return (
+                  <div className={`operation-card ${enabled ? '' : 'is-disabled'}`} key={operation}>
+                    <div className="operation-card-title">
+                      <span className="operation-emoji">{OP_LABELS[operation].emoji}</span>
+                      <strong>{OP_LABELS[operation].name}</strong>
+                      {!enabled && <span className="operation-disabled-label">wyłączone</span>}
+                    </div>
+                    <div className="digit-grid">
+                      {Array.from({ length: 10 }, (_, digit) => (
+                        <DigitButton
+                          key={digit}
+                          digit={digit}
+                          active={draft.digits[operation].includes(digit)}
+                          disabled={!unlocked || !enabled}
+                          onClick={() => updateDigits(operation, digit)}
+                        />
+                      ))}
+                    </div>
+                    {operation === 'division' && <div className="operation-hint">0 nie może być dzielnikiem. Gra wybiera tylko przykłady z całkowitym wynikiem.</div>}
                   </div>
-                  <div className="digit-grid">
-                    {Array.from({ length: 10 }, (_, digit) => (
-                      <DigitButton
-                        key={digit}
-                        digit={digit}
-                        active={draft.digits[operation].includes(digit)}
-                        disabled={!unlocked}
-                        onClick={() => updateDigits(operation, digit)}
-                      />
-                    ))}
-                  </div>
-                  {operation === 'division' && <div className="operation-hint">0 nie może być dzielnikiem. Gra wybiera tylko przykłady z całkowitym wynikiem.</div>}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -316,9 +376,14 @@ function SettingsModal({ settings, onSave, onClose }) {
                 return;
               }
               const cleanDigits = { ...draft.digits };
-              const invalid = OP_ORDER.some((op) => cleanDigits[op].length === 0) || (cleanDigits.division.length === 1 && cleanDigits.division[0] === 0);
+              const selected = draft.selectedOperations ?? OP_ORDER;
+              if (selected.length === 0) {
+                setPinError('Wybierz przynajmniej jedno działanie.');
+                return;
+              }
+              const invalid = selected.some((op) => cleanDigits[op].length === 0 || !hasEnoughForOperation(op, cleanDigits));
               if (invalid) {
-                setPinError('Każde działanie musi mieć co najmniej jedną cyfrę. Dla dzielenia potrzebna jest też cyfra różna od 0.');
+                setPinError('Każde wybrane działanie musi mieć poprawnie ustawione cyfry. Dla dzielenia musi istnieć przynajmniej jeden poprawny przykład.');
                 return;
               }
               save();
@@ -333,7 +398,7 @@ function SettingsModal({ settings, onSave, onClose }) {
 }
 
 function Keypad({ onDigit, onBackspace, onClear, onSubmit, disabled }) {
-  const keys = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+  const keys = [7, 8, 9, 4, 5, 6, 1, 2, 3];
   return (
     <div className="keypad" aria-label="Klawiatura cyfr">
       {keys.map((digit) => (
@@ -426,6 +491,7 @@ export default function App() {
   const handleSaveSettings = (nextSettings) => {
     const normalized = {
       ...nextSettings,
+      selectedOperations: [...(nextSettings.selectedOperations ?? OP_ORDER)].filter((op) => OP_ORDER.includes(op)),
       digits: Object.fromEntries(OP_ORDER.map((op) => [op, [...nextSettings.digits[op]].sort((a, b) => a - b)])),
       starTimes: {
         five: Number(nextSettings.starTimes.five),
